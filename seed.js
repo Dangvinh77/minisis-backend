@@ -3,11 +3,24 @@ import mongoose from "mongoose";
 import User from "./models/user.model.js";
 import Product from "./models/product.model.js";
 import fs from "fs";
+
+const connectDB = async () => {
+    try {
+        await mongoose.connect(process.env.MONGO_URI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+        console.log("MongoDB connected successfully");
+        return mongoose.connection;
+    } catch (error) {
+        console.error("MongoDB connection error:", error);
+        process.exit(1);
+    }
+};
+
 const createDefaultUsers = async () => {
     try {
-        // 1. Kết nối DB
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log("MongoDB Connected");
+        console.log("\n=== STARTING USER SEED ===");
 
         // 2. Hỏi xác nhận trước khi xóa dữ liệu
         console.log("\n⚠️  WARNING: This will delete ALL users from the database!");
@@ -31,12 +44,6 @@ const createDefaultUsers = async () => {
             address: "123 Đường Lê Lợi, Quận 1, TP.HCM"
         });
         console.log("\n🎉 Default Admin Created!");
-        console.log("👉 Username: admin");
-        console.log("🔑 Password: 123456");
-        console.log("📧 Email: admin@example.com");
-        console.log("👤 Fullname: Nguyễn Văn Admin");
-        console.log("📞 Phone: 0901234567");
-        console.log("🏠 Address: 123 Đường Lê Lợi, Quận 1, TP.HCM");
 
         // 5. Tạo user thông thường với đầy đủ thông tin
         await User.create({
@@ -49,51 +56,25 @@ const createDefaultUsers = async () => {
             address: "456 Đường Nguyễn Huệ, Quận 1, TP.HCM"
         });
         console.log("\n🎉 Default User Created!");
-        console.log("👉 Username: user01");
-        console.log("🔑 Password: 123456");
-        console.log("📧 Email: user01@example.com");
-        console.log("👤 Fullname: Trần Thị User");
-        console.log("📞 Phone: 0917654321");
-        console.log("🏠 Address: 456 Đường Nguyễn Huệ, Quận 1, TP.HCM");
 
-        // 6. Tạo thêm một user không có thông tin bổ sung (để test trường hợp null)
+        // 6. Tạo thêm một user không có thông tin bổ sung
         await User.create({
             username: "user02",
             email: "user02@example.com",
             password: "123456",
             role: "user"
-            // fullname, phoneNumber, address sẽ là null
         });
-        console.log("\n🎉 Additional User Created (with null fields)!");
-        console.log("👉 Username: user02");
-        console.log("🔑 Password: 123456");
-        console.log("📧 Email: user02@example.com");
-        console.log("👤 Fullname: null");
-        console.log("📞 Phone: null");
-        console.log("🏠 Address: null");
+        console.log("\n🎉 Additional User Created!");
 
         // 7. Hiển thị tất cả users
         console.log("\n📋 All Users in Database:");
-        const allUsers = await User.find({}, { password: 0 }); // Ẩn password
+        const allUsers = await User.find({}, { password: 0 });
         console.log(JSON.stringify(allUsers, null, 2));
 
-        process.exit(0);
+        console.log("✅ User seeding completed!");
     } catch (error) {
-        console.error("❌ Error: ", error);
-        process.exit(1);
-    }
-};
-
-const connectDB = async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
-        console.log("MongoDB connected successfully");
-    } catch (error) {
-        console.error("MongoDB connection error:", error);
-        process.exit(1);
+        console.error("❌ Error creating users: ", error);
+        throw error;
     }
 };
 
@@ -106,18 +87,17 @@ const getRandomSaleStatus = () => {
 // Hàm tạo random importDate trong vòng 1 năm trở lại
 const getRandomImportDate = () => {
     const start = new Date();
-    start.setFullYear(start.getFullYear() - 1); // 1 năm trước
+    start.setFullYear(start.getFullYear() - 1);
     const end = new Date();
     const randomDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
     return randomDate;
 };
 
-// Hàm seed dữ liệu
 const seedProducts = async () => {
     try {
-        await connectDB();
+        console.log("\n=== STARTING PRODUCT SEED ===");
 
-        // Xóa dữ liệu cũ (tuỳ chọn)
+        // Xóa dữ liệu cũ
         await Product.deleteMany({});
         console.log("Old products data cleared");
 
@@ -152,16 +132,35 @@ const seedProducts = async () => {
         const eyeglassesCount = result.filter(p => p.category === "eyeglasses").length;
         const sunglassesCount = result.filter(p => p.category === "sunglasses").length;
 
-        console.log(`Eyeglasses: ${eyeglassesCount}`);
-        console.log(`Sunglasses: ${sunglassesCount}`);
+        console.log(`📊 Eyeglasses: ${eyeglassesCount}`);
+        console.log(`🕶️ Sunglasses: ${sunglassesCount}`);
 
+        console.log("✅ Product seeding completed!");
+    } catch (error) {
+        console.error("❌ Error seeding products:", error);
+        throw error;
+    }
+};
+
+// Hàm chính chạy tất cả seed
+const runAllSeeds = async () => {
+    try {
+        console.log("🚀 Starting database seeding...");
+
+        // Kết nối DB một lần duy nhất
+        await connectDB();
+
+        // Chạy seed tuần tự
+        await seedProducts();
+        await createDefaultUsers();
+
+        console.log("\n🎉 All seeding completed successfully!");
         process.exit(0);
     } catch (error) {
-        console.error("Error seeding products:", error);
+        console.error("💥 Seeding failed:", error);
         process.exit(1);
     }
 };
 
-// Chạy seed
-seedProducts();
-createDefaultUsers();
+// Chạy tất cả seed
+runAllSeeds();
