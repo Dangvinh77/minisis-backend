@@ -1,7 +1,8 @@
 import "dotenv/config";
 import mongoose from "mongoose";
 import User from "./models/user.model.js";
-
+import Product from "./models/product.model.js";
+import fs from "fs";
 const createDefaultUsers = async () => {
     try {
         // 1. Kết nối DB
@@ -121,8 +122,8 @@ const seedProducts = async () => {
         console.log("Old products data cleared");
 
         // Đọc dữ liệu từ file JSON
-        const eyeglassesData = JSON.parse(fs.readFileSync("./data/eyeglasses.json", "utf8"));
-        const sunglassesData = JSON.parse(fs.readFileSync("./data/sunglasses.json", "utf8"));
+        const eyeglassesData = JSON.parse(fs.readFileSync("./data/Eyeglasses.json", "utf8"));
+        const sunglassesData = JSON.parse(fs.readFileSync("./data/Sunglasses.json", "utf8"));
 
         // Chuẩn bị dữ liệu eyeglasses
         const eyeglassesWithCategory = eyeglassesData.map(product => ({
