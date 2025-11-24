@@ -83,4 +83,84 @@ const createDefaultUsers = async () => {
     }
 };
 
+const connectDB = async () => {
+    try {
+        await mongoose.connect(process.env.MONGO_URI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+        console.log("MongoDB connected successfully");
+    } catch (error) {
+        console.error("MongoDB connection error:", error);
+        process.exit(1);
+    }
+};
+
+// Hàm tạo random saleStatus
+const getRandomSaleStatus = () => {
+    const statuses = ["yes", "no"];
+    return statuses[Math.floor(Math.random() * statuses.length)];
+};
+
+// Hàm tạo random importDate trong vòng 1 năm trở lại
+const getRandomImportDate = () => {
+    const start = new Date();
+    start.setFullYear(start.getFullYear() - 1); // 1 năm trước
+    const end = new Date();
+    const randomDate = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+    return randomDate;
+};
+
+// Hàm seed dữ liệu
+const seedProducts = async () => {
+    try {
+        await connectDB();
+
+        // Xóa dữ liệu cũ (tuỳ chọn)
+        await Product.deleteMany({});
+        console.log("Old products data cleared");
+
+        // Đọc dữ liệu từ file JSON
+        const eyeglassesData = JSON.parse(fs.readFileSync("./data/eyeglasses.json", "utf8"));
+        const sunglassesData = JSON.parse(fs.readFileSync("./data/sunglasses.json", "utf8"));
+
+        // Chuẩn bị dữ liệu eyeglasses
+        const eyeglassesWithCategory = eyeglassesData.map(product => ({
+            ...product,
+            category: "eyeglasses",
+            saleStatus: getRandomSaleStatus(),
+            importDate: getRandomImportDate()
+        }));
+
+        // Chuẩn bị dữ liệu sunglasses
+        const sunglassesWithCategory = sunglassesData.map(product => ({
+            ...product,
+            category: "sunglasses",
+            saleStatus: getRandomSaleStatus(),
+            importDate: getRandomImportDate()
+        }));
+
+        // Kết hợp cả 2 mảng
+        const allProducts = [...eyeglassesWithCategory, ...sunglassesWithCategory];
+
+        // Insert vào database
+        const result = await Product.insertMany(allProducts);
+        console.log(`Successfully seeded ${result.length} products`);
+
+        // Thống kê
+        const eyeglassesCount = result.filter(p => p.category === "eyeglasses").length;
+        const sunglassesCount = result.filter(p => p.category === "sunglasses").length;
+
+        console.log(`Eyeglasses: ${eyeglassesCount}`);
+        console.log(`Sunglasses: ${sunglassesCount}`);
+
+        process.exit(0);
+    } catch (error) {
+        console.error("Error seeding products:", error);
+        process.exit(1);
+    }
+};
+
+// Chạy seed
+seedProducts();
 createDefaultUsers();
