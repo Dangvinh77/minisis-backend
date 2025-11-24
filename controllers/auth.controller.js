@@ -157,3 +157,84 @@ export const getUserProfile = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+// Update user profile
+export const updateUserProfile = async (req, res) => {
+    try {
+        const { fullname, phoneNumber, address } = req.body;
+        const userId = req.user.id;
+
+        // Chỉ cho phép cập nhật các trường được phép
+        const updateData = {};
+        if (fullname !== undefined) updateData.fullname = fullname;
+        if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+        if (address !== undefined) updateData.address = address;
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $set: updateData },
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!updatedUser) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.json({
+            message: "Profile updated successfully",
+            user: updatedUser
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+
+// Change password
+// Change password - Phiên bản sửa lỗi
+export const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body; // Chỉ cần 2 trường
+        const userId = req.user.id;
+
+        console.log("Change password request for user:", userId);
+        console.log("Request body:", req.body);
+
+        // Validation đơn giản
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: "Current password and new password are required" });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: "New password must be at least 6 characters long" });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        console.log("Password match result:", isMatch);
+
+        if (!isMatch) {
+            return res.status(400).json({ error: "Current password is incorrect" });
+        }
+
+        // Update password
+        user.password = newPassword;
+        await user.save();
+
+        console.log("Password changed successfully for user:", user.username);
+
+        res.json({
+            message: "Password changed successfully",
+            user: {
+                username: user.username,
+                email: user.email
+            }
+        });
+    } catch (error) {
+        console.error("Error in changePassword:", error);
+        res.status(400).json({ error: error.message });
+    }
+};
